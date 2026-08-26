@@ -149,7 +149,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.btn_row0 = ctk.CTkFrame(self.btn_frame, fg_color="transparent")
         self.btn_row0.pack(pady=5)
         
-        self.clear_btn = ctk.CTkButton(self.btn_row0, text="Clear", command=self.clear_files, fg_color="#ff5555", hover_color="#ff3333", width=120, height=45, font=ctk.CTkFont(size=14, weight="bold"))
+        self.clear_btn = ctk.CTkButton(self.btn_row0, text="↺ Reset", command=self.hard_reset, fg_color="#ff5555", hover_color="#ff3333", width=120, height=45, font=ctk.CTkFont(size=14, weight="bold"))
         self.clear_btn.pack(side="left", padx=8)
         
         self.process_btn = ctk.CTkButton(self.btn_row0, text="Generate", command=self.start_processing, width=120, height=45, font=ctk.CTkFont(size=14, weight="bold"))
@@ -235,22 +235,46 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             return re.findall(r'\{(.*?)\}', data)
         return data.split()
 
-    def clear_files(self):
+    def hard_reset(self):
+        """Restore every piece of UI and application state to the exact startup condition."""
+        # ── Internal state ────────────────────────────────────────────────────
         self.pdf_files = []
-        self.progress.set(0)
-        self.process_btn.configure(state="normal")
-        self.manual_platform_override = False
         self.current_preview_image = None
         self.current_preview_page = 0
         self.total_preview_pages = 0
-        self.update_preview_controls()
-        self.preview_label.configure(image="", text="No preview available")
-        self.status_label.configure(text="")
-        # Reset drop zone appearance
+        self.manual_platform_override = False
+
+        # ── Delete temp output PDF so stale previews can't reappear ──────────
+        if os.path.exists(self.output_path):
+            try:
+                os.remove(self.output_path)
+            except OSError as e:
+                print(f"[WARN] Could not delete temp output: {e}")
+
+        # ── Platform selector → first platform (default) ──────────────────────
+        platforms = self.load_platforms()
+        default_platform = platforms[0] if platforms else "Amazon"
+        self.platform_var.set(default_platform)
+
+        # ── Progress bar ──────────────────────────────────────────────────────
+        self.progress.set(0)
+
+        # ── Drop zone ─────────────────────────────────────────────────────────
         self.drop_frame.configure(border_color="gray50")
         self.drop_icon.configure(text="📄")
         self.drop_label.configure(text="Drag & Drop PDF Files Here")
-        self.file_count_label.configure(text="")
+        self.file_count_label.configure(text="", text_color="#28a745")
+
+        # ── Status label ──────────────────────────────────────────────────────
+        self.status_label.configure(text="", text_color="red")
+
+        # ── Preview panel ─────────────────────────────────────────────────────
+        self.preview_label.configure(image="", text="No preview available")
+        self.update_preview_controls()
+
+        # ── Buttons → startup layout (Generate visible, Print/Save hidden) ────
+        self.clear_btn.configure(state="normal")
+        self.process_btn.configure(state="normal")
         self.show_generate_buttons()
 
     def start_processing(self):
