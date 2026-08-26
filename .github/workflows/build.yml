@@ -9,40 +9,6 @@ on:
     branches: [main]
 
 jobs:
-  # ── Linux Build ─────────────────────────────────────────────────────────────
-  build-linux:
-    name: Build — Linux
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Install system Tcl/Tk (required by tkinter)
-        run: sudo apt-get install -y python3-tk
-
-      - name: Install Python dependencies
-        run: pip install PyMuPDF Pillow customtkinter tkinterdnd2 pyinstaller
-
-      - name: Build with PyInstaller
-        run: python -m PyInstaller ecom_print.spec
-
-      - name: Rename binary with platform suffix
-        run: mv dist/InvoicePrinter dist/InvoicePrinter-linux-x86_64
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: InvoicePrinter-linux
-          path: dist/InvoicePrinter-linux-x86_64
-          retention-days: 7
-
   # ── Windows Build ────────────────────────────────────────────────────────────
   build-windows:
     name: Build — Windows
@@ -64,7 +30,7 @@ jobs:
       - name: Build with PyInstaller
         run: python -m PyInstaller ecom_print.spec
 
-      - name: Rename binary with platform suffix
+      - name: Rename binary with version suffix
         run: Rename-Item dist\InvoicePrinter.exe InvoicePrinter-windows-x86_64.exe
         shell: pwsh
 
@@ -78,19 +44,13 @@ jobs:
   # ── GitHub Release (tag pushes only) ────────────────────────────────────────
   release:
     name: Publish Release
-    needs: [build-linux, build-windows]
+    needs: [build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download Linux binary
-        uses: actions/download-artifact@v4
-        with:
-          name: InvoicePrinter-linux
-          path: release/
-
       - name: Download Windows binary
         uses: actions/download-artifact@v4
         with:
@@ -107,20 +67,16 @@ jobs:
           body: |
             ## InvoicePrinter ${{ github.ref_name }}
 
-            ### Downloads
+            ### Download
             | Platform | File |
             |---|---|
-            | 🐧 Linux (x86_64) | `InvoicePrinter-linux-x86_64` |
             | 🪟 Windows (x86_64) | `InvoicePrinter-windows-x86_64.exe` |
 
             ### Usage
-            - **Linux**: `chmod +x InvoicePrinter-linux-x86_64 && ./InvoicePrinter-linux-x86_64`
-            - **Windows**: Double-click `InvoicePrinter-windows-x86_64.exe`
+            Double-click `InvoicePrinter-windows-x86_64.exe` to launch.
 
-            > 🖨 Direct printer support is **Windows-only**. On Linux, use "Save as PDF" instead.
+            > 🖨 Supports direct printing to your default Windows printer.
           generate_release_notes: true
           draft: false
           prerelease: false
-          files: |
-            release/InvoicePrinter-linux-x86_64
-            release/InvoicePrinter-windows-x86_64.exe
+          files: release/InvoicePrinter-windows-x86_64.exe
