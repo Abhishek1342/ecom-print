@@ -24,21 +24,33 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
     A4_HEIGHT = 841.89
 
     # Split ratio: how much of the width goes to the LEFT side (Q1/Q3)
-    split_ratio = platform_config.get("split_ratio", 0.5)
-    left_w = A4_WIDTH * split_ratio
-    right_w = A4_WIDTH - left_w
-    half_h = A4_HEIGHT / 2
+    split_ratio     = platform_config.get("split_ratio", 0.5)
+    # page_margin_left: points of blank space added to the left paper edge
+    margin_left     = platform_config.get("page_margin_left", 0)
+    # page_gutter_v: vertical gap (points) between top and bottom row of quadrants
+    gutter_v        = platform_config.get("page_gutter_v", 0)
+
+    usable_w = A4_WIDTH - margin_left
+    left_w   = usable_w * split_ratio
+    right_w  = usable_w - left_w
+    half_h   = (A4_HEIGHT - gutter_v) / 2
+    gutter_start = half_h
+    gutter_end   = half_h + gutter_v
 
     def get_quad_rect(quadrant_num):
         """Return the fitz.Rect for the given quadrant (1-4) on an A4 page."""
+        x0_left  = margin_left
+        x1_left  = margin_left + left_w
+        x0_right = margin_left + left_w
+        x1_right = A4_WIDTH
         if quadrant_num == 1:   # Top-Left
-            return fitz.Rect(0, 0, left_w, half_h)
+            return fitz.Rect(x0_left,  0,           x1_left,  gutter_start)
         elif quadrant_num == 2: # Top-Right
-            return fitz.Rect(left_w, 0, A4_WIDTH, half_h)
+            return fitz.Rect(x0_right, 0,           x1_right, gutter_start)
         elif quadrant_num == 3: # Bottom-Left
-            return fitz.Rect(0, half_h, left_w, A4_HEIGHT)
+            return fitz.Rect(x0_left,  gutter_end,  x1_left,  A4_HEIGHT)
         elif quadrant_num == 4: # Bottom-Right
-            return fitz.Rect(left_w, half_h, A4_WIDTH, A4_HEIGHT)
+            return fitz.Rect(x0_right, gutter_end,  x1_right, A4_HEIGHT)
 
     # Quadrant assignment from config
     default_challan_q_single = platform_config.get("challan_quadrant_single", 1)
