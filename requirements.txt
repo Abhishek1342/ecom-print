@@ -1,0 +1,13 @@
+# Core PDF processing
+PyMuPDF>=1.23.0
+Pillow>=10.0.0
+
+# GUI
+customtkinter>=5.2.0
+tkinterdnd2>=0.3.0
+
+# Build tool
+pyinstaller>=6.0.0
+
+# Windows-only: direct printer access (install only on Windows)
+# pywin32>=306

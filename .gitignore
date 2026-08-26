@@ -1,0 +1,35 @@
+# ── Build artifacts ──────────────────────────────────────────────────────────
+dist/
+build/
+*.spec.bak
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.eggs/
+*.whl
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env
+
+# ── PyInstaller runtime cache ─────────────────────────────────────────────────
+*.manifest
+
+# ── OS junk ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Temp output from the app ─────────────────────────────────────────────────
+output.txt
+InvoicePrinter_output.pdf
+
+# ── One-off / personal scripts (not part of this project) ────────────────────
+Airtelpass.py

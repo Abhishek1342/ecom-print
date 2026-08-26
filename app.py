@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD, DND_FILES
 import os
+import platform
 import shutil
 import threading
 from tkinter import filedialog
@@ -10,10 +11,14 @@ import sys
 import fitz
 from PIL import Image
 import io
-import win32print
-import win32ui
-import win32con
-from PIL import ImageWin
+
+IS_WINDOWS = platform.system() == "Windows"
+
+if IS_WINDOWS:
+    import win32print
+    import win32ui
+    import win32con
+    from PIL import ImageWin
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
@@ -151,6 +156,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.process_btn.pack(side="left", padx=8)
 
         self.print_btn = ctk.CTkButton(self.btn_row0, text="🖨 Print", command=self.print_pdf, fg_color="#28a745", hover_color="#218838", width=120, height=45, font=ctk.CTkFont(size=14, weight="bold"))
+        if not IS_WINDOWS:
+            self.print_btn.configure(state="disabled", text="🖨 Print (Windows only)")
         # Hidden initially
         
         # Row 1: Save as PDF
@@ -401,6 +408,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 self.status_label.configure(text=f"Failed to save: {e}", text_color="red")
 
     def print_pdf(self):
+        if not IS_WINDOWS:
+            self.status_label.configure(text="Direct printing is only supported on Windows.", text_color="red")
+            return
         if not os.path.exists(self.output_path):
             return
         
