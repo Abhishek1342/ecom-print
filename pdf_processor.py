@@ -284,16 +284,14 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config, slot=0):
     scale_to_height = config.get("scale_to_height", False)
 
     if scale_to_height:
-        # Fill full quadrant HEIGHT, center-crop any width overflow.
-        # Center-crop ensures we see the middle of the label, not the blank left margin.
+        # Fill full quadrant HEIGHT, anchor top-left, crop right overflow.
         scale = target_h / img_h
         new_w = img_w * scale
         new_h = target_h
         if new_w > target_w:
+            # Crop image to only the visible left portion before saving
             visible_px_w = int(img_w * (target_w / new_w))
-            excess_px    = img_w - visible_px_w
-            left_crop    = excess_px // 2          # equal trim from each side
-            img = img.crop((left_crop, 0, left_crop + visible_px_w, img_h))
+            img = img.crop((0, 0, visible_px_w, img_h))
             new_w = target_w
         x_offset = 0
         y_offset = 0
