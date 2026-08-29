@@ -130,24 +130,23 @@ def run_processing(uploaded_files, platform: str, progress=gr.Progress()):
 
 # ── Build the Gradio UI ───────────────────────────────────────────────────────
 
+_THEME = gr.themes.Soft(
+    primary_hue="blue",
+    secondary_hue="slate",
+    neutral_hue="gray",
+)
+
+_CSS = """
+#title { text-align: center; }
+#status-box { border-radius: 8px; font-weight: 600; }
+.gradio-container { max-width: 1100px; margin: auto; }
+"""
+
+
 def build_ui() -> gr.Blocks:
     platforms = _load_platforms()
 
-    custom_css = """
-    #title { text-align: center; }
-    #status-box { border-radius: 8px; font-weight: 600; }
-    .gradio-container { max-width: 1100px; margin: auto; }
-    """
-
-    with gr.Blocks(
-        title="ecom-print — Dev Server",
-        theme=gr.themes.Soft(
-            primary_hue="blue",
-            secondary_hue="slate",
-            neutral_hue="gray",
-        ),
-        css=custom_css,
-    ) as demo:
+    with gr.Blocks(title="ecom-print — Dev Server") as demo:
 
         # ── Header ────────────────────────────────────────────────────────────
         gr.Markdown(
@@ -258,4 +257,6 @@ if __name__ == "__main__":
         server_port=7860,
         share=False,
         show_error=True,
+        theme=_THEME,
+        css=_CSS,
     )
