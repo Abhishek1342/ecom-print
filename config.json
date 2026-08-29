@@ -46,7 +46,7 @@
         4
       ],
       "page_challan": {
-        "crop_bottom_at_text": "Tax Invoice",
+        "crop_bottom_at_text": "Not for resale",
         "auto_crop": true,
         "crop_padding": 3,
         "rotate_degrees": 0,
