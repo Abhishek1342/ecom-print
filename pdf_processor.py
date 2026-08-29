@@ -24,33 +24,38 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
     A4_HEIGHT = 841.89
 
     # Split ratio: how much of the width goes to the LEFT side (Q1/Q3)
-    split_ratio     = platform_config.get("split_ratio", 0.5)
-    # page_margin_left: points of blank space added to the left paper edge
-    margin_left     = platform_config.get("page_margin_left", 0)
+    split_ratio  = platform_config.get("split_ratio", 0.5)
+    # page_margin_*: blank space (pt) at each paper edge
+    margin_left   = platform_config.get("page_margin_left", 0)
+    margin_right  = platform_config.get("page_margin_right", 0)
+    margin_top    = platform_config.get("page_margin_top", 0)
+    margin_bottom = platform_config.get("page_margin_bottom", 0)
     # page_gutter_v: vertical gap (points) between top and bottom row of quadrants
-    gutter_v        = platform_config.get("page_gutter_v", 0)
+    gutter_v      = platform_config.get("page_gutter_v", 0)
 
-    usable_w = A4_WIDTH - margin_left
+    usable_w = A4_WIDTH - margin_left - margin_right
     left_w   = usable_w * split_ratio
     right_w  = usable_w - left_w
-    half_h   = (A4_HEIGHT - gutter_v) / 2
-    gutter_start = half_h
-    gutter_end   = half_h + gutter_v
+    
+    usable_h = A4_HEIGHT - margin_top - margin_bottom
+    half_h   = (usable_h - gutter_v) / 2
+    gutter_start = margin_top + half_h
+    gutter_end   = gutter_start + gutter_v
 
     def get_quad_rect(quadrant_num):
         """Return the fitz.Rect for the given quadrant (1-4) on an A4 page."""
         x0_left  = margin_left
         x1_left  = margin_left + left_w
         x0_right = margin_left + left_w
-        x1_right = A4_WIDTH
+        x1_right = A4_WIDTH - margin_right
         if quadrant_num == 1:   # Top-Left
-            return fitz.Rect(x0_left,  0,           x1_left,  gutter_start)
+            return fitz.Rect(x0_left,  margin_top,  x1_left,  gutter_start)
         elif quadrant_num == 2: # Top-Right
-            return fitz.Rect(x0_right, 0,           x1_right, gutter_start)
+            return fitz.Rect(x0_right, margin_top,  x1_right, gutter_start)
         elif quadrant_num == 3: # Bottom-Left
-            return fitz.Rect(x0_left,  gutter_end,  x1_left,  A4_HEIGHT)
+            return fitz.Rect(x0_left,  gutter_end,  x1_left,  A4_HEIGHT - margin_bottom)
         elif quadrant_num == 4: # Bottom-Right
-            return fitz.Rect(x0_right, gutter_end,  x1_right, A4_HEIGHT)
+            return fitz.Rect(x0_right, gutter_end,  x1_right, A4_HEIGHT - margin_bottom)
 
     # Quadrant assignment from config
     default_challan_q_single = platform_config.get("challan_quadrant_single", 1)
@@ -91,8 +96,8 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
 
         if multi_page_input:
             # Both challan and invoice come from the SAME source page
-            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_challan), c_config)
-            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_invoice), i_config)
+            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_challan), c_config, slot=slot)
+            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_invoice), i_config, slot=slot)
         else:
             # Challan and invoice are on separate pages within each order PDF
             challan_page_idx = platform_config.get("challan_page_index", 0)
@@ -100,11 +105,11 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
 
             if doc_in.page_count > challan_page_idx:
                 print(f"[DEBUG] Drawing CHALLAN: src_page={challan_page_idx}, quadrant={quad_challan}")
-                _draw_page(current_out_page, doc_in, challan_page_idx, get_quad_rect(quad_challan), c_config)
+                _draw_page(current_out_page, doc_in, challan_page_idx, get_quad_rect(quad_challan), c_config, slot=slot)
 
             if doc_in.page_count > invoice_page_idx:
                 print(f"[DEBUG] Drawing INVOICE: src_page={invoice_page_idx}, quadrant={quad_invoice}")
-                _draw_page(current_out_page, doc_in, invoice_page_idx, get_quad_rect(quad_invoice), i_config)
+                _draw_page(current_out_page, doc_in, invoice_page_idx, get_quad_rect(quad_invoice), i_config, slot=slot)
 
         if progress_callback:
             progress_callback(order_idx + 1, total_orders)
@@ -157,16 +162,21 @@ def _close_order_sources(order_sources):
             closed.add(id(doc))
 
 
-def _draw_page(out_page, doc_in, page_num, target_rect, config):
+def _draw_page(out_page, doc_in, page_num, target_rect, config, slot=0):
     """
     Render a single source page, apply crops/rotation, and insert it into
     the target rectangle on the output page.
+
+    slot=0  → content is bottom-anchored (top half of page, pushes toward gutter)
+    slot=1  → content is top-anchored    (bottom half of page, pushes toward gutter)
+    This collapses dead space to the outer page edges instead of between orders.
     """
     page = doc_in[page_num]
 
-    auto_crop    = config.get("auto_crop", True)
-    crop_padding = config.get("crop_padding", 5)
-    rotate       = config.get("rotate_degrees", 0)
+    auto_crop           = config.get("auto_crop", True)
+    crop_padding        = config.get("crop_padding", 5)
+    rotate              = config.get("rotate_degrees", 0)
+    suppress_dashed     = config.get("suppress_dashed_lines", False)
 
     # Render page to high-res image (needed for auto-crop and rotation)
     zoom = 3.0
@@ -179,6 +189,28 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config):
     img = PILImage.open(tmp_src.name)
 
     print(f"[DEBUG] _draw_page: page={page_num}, size={img.size}, rotate={rotate}, auto_crop={auto_crop}")
+
+    # --- STEP 0: Suppress dashed vector lines (e.g. Flipkart cut-marks) ------
+    # These are vector paths baked into the render; we paint white over them
+    # in pixel-space so they don't affect content bounding-box detection.
+    if suppress_dashed:
+        from PIL import ImageDraw
+        drawings = page.get_drawings()
+        draw_overlay = ImageDraw.Draw(img)
+        for d in drawings:
+            if d.get("dashes"):  # only dashed/dotted paths
+                rect = d.get("rect")
+                if rect is not None:  # NOTE: do NOT check is_empty — horizontal lines have y0==y1 (is_empty=True)
+                    # Convert PDF points → pixels at current zoom, with ±3pt padding
+                    pad_px = int(3 * zoom)
+                    x0_px = max(0, int(rect.x0 * zoom) - pad_px)
+                    y0_px = max(0, int(rect.y0 * zoom) - pad_px)
+                    x1_px = min(img.width,  int(rect.x1 * zoom) + pad_px)
+                    y1_px = min(img.height, int(rect.y1 * zoom) + pad_px)
+                    if x1_px > x0_px and y1_px > y0_px:
+                        draw_overlay.rectangle([x0_px, y0_px, x1_px, y1_px], fill=(255, 255, 255))
+                        print(f"[DEBUG] Suppressed dashed path at PDF rect={rect}, px=({x0_px},{y0_px},{x1_px},{y1_px})")
+        del draw_overlay
 
     # --- STEP 1a: Fixed margin crop ---
     crop    = config.get("crop_margin", {"top": 0, "bottom": 0, "left": 0, "right": 0})
@@ -246,20 +278,29 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config):
         img = img.rotate(ccw_angle, expand=True)
         print(f"[DEBUG] Rotated {rotate}° CW, new_size={img.size}")
 
-    # --- STEP 3: Scale and center into target rect ---
+    # --- STEP 3: Scale and place into target rect ---
     tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     tmp_out.close()
-    img.save(tmp_out.name)
 
     img_w, img_h = img.size
     target_w = target_rect.width
     target_h = target_rect.height
-    scale  = min(target_w / img_w, target_h / img_h)
-    new_w  = img_w * scale
-    new_h  = img_h * scale
+    scale = min(target_w / img_w, target_h / img_h)
+    new_w = img_w * scale
+    new_h = img_h * scale
 
-    x_offset = (target_w - new_w) / 2
-    y_offset = (target_h - new_h) / 2
+    # Horizontal: left-column (x0 < 200) anchors left, right-column anchors right.
+    # This collapses horizontal dead space into the center fold, making outer margins strictly uniform.
+    if target_rect.x0 < 200:
+        x_offset = 0
+    else:
+        x_offset = target_w - new_w
+
+    # Vertical: slot-0 → bottom-anchor (pushes toward gutter from above)
+    #           slot-1 → top-anchor    (pushes toward gutter from below)
+    y_offset = (target_h - new_h) if slot == 0 else 0
+
+    img.save(tmp_out.name)
 
     centered_rect = fitz.Rect(
         target_rect.x0 + x_offset,
