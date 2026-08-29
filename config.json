@@ -51,7 +51,7 @@
         "suppress_dashed_lines": true,
         "auto_crop": true,
         "crop_padding": 3,
-        "rotate_degrees": 0
+        "rotate_degrees": 90
       },
       "page_invoice": {
         "crop_top_at_text": "Tax Invoice",
