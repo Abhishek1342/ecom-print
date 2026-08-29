@@ -33,3 +33,8 @@ InvoicePrinter_output.pdf
 
 # ── One-off / personal scripts (not part of this project) ────────────────────
 Airtelpass.py
+
+# ── web-dev branch: Gradio dev server artefacts ───────────────────────────────
+gradio_cached_examples/
+.gradio/
+flagged/
