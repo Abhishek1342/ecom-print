@@ -34,6 +34,7 @@
       "multi_page_input": true,
       "orders_per_page": 1,
       "page_margin_left": 14,
+      "page_margin_right": 10,
       "page_gutter_v": 6,
       "challan_quadrant_single": 1,
       "invoice_quadrant_single": 2,
@@ -46,7 +47,8 @@
         4
       ],
       "page_challan": {
-        "crop_bottom_at_text": "Not for resale",
+        "crop_bottom_at_text": "Tax Invoice",
+        "suppress_dashed_lines": true,
         "auto_crop": true,
         "crop_padding": 3,
         "rotate_degrees": 0,

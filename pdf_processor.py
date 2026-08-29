@@ -24,13 +24,14 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
     A4_HEIGHT = 841.89
 
     # Split ratio: how much of the width goes to the LEFT side (Q1/Q3)
-    split_ratio     = platform_config.get("split_ratio", 0.5)
-    # page_margin_left: points of blank space added to the left paper edge
-    margin_left     = platform_config.get("page_margin_left", 0)
+    split_ratio  = platform_config.get("split_ratio", 0.5)
+    # page_margin_left / page_margin_right: blank space (pt) at each paper edge
+    margin_left  = platform_config.get("page_margin_left", 0)
+    margin_right = platform_config.get("page_margin_right", 0)
     # page_gutter_v: vertical gap (points) between top and bottom row of quadrants
-    gutter_v        = platform_config.get("page_gutter_v", 0)
+    gutter_v     = platform_config.get("page_gutter_v", 0)
 
-    usable_w = A4_WIDTH - margin_left
+    usable_w = A4_WIDTH - margin_left - margin_right
     left_w   = usable_w * split_ratio
     right_w  = usable_w - left_w
     half_h   = (A4_HEIGHT - gutter_v) / 2
@@ -42,7 +43,7 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
         x0_left  = margin_left
         x1_left  = margin_left + left_w
         x0_right = margin_left + left_w
-        x1_right = A4_WIDTH
+        x1_right = A4_WIDTH - margin_right
         if quadrant_num == 1:   # Top-Left
             return fitz.Rect(x0_left,  0,           x1_left,  gutter_start)
         elif quadrant_num == 2: # Top-Right
@@ -164,9 +165,10 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config):
     """
     page = doc_in[page_num]
 
-    auto_crop    = config.get("auto_crop", True)
-    crop_padding = config.get("crop_padding", 5)
-    rotate       = config.get("rotate_degrees", 0)
+    auto_crop           = config.get("auto_crop", True)
+    crop_padding        = config.get("crop_padding", 5)
+    rotate              = config.get("rotate_degrees", 0)
+    suppress_dashed     = config.get("suppress_dashed_lines", False)
 
     # Render page to high-res image (needed for auto-crop and rotation)
     zoom = 3.0
@@ -179,6 +181,27 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config):
     img = PILImage.open(tmp_src.name)
 
     print(f"[DEBUG] _draw_page: page={page_num}, size={img.size}, rotate={rotate}, auto_crop={auto_crop}")
+
+    # --- STEP 0: Suppress dashed vector lines (e.g. Flipkart cut-marks) ------
+    # These are vector paths baked into the render; we paint white over them
+    # in pixel-space so they don't affect content bounding-box detection.
+    if suppress_dashed:
+        from PIL import ImageDraw
+        drawings = page.get_drawings()
+        draw_overlay = ImageDraw.Draw(img)
+        for d in drawings:
+            if d.get("dashes"):  # only dashed/dotted paths
+                rect = d.get("rect")
+                if rect and not rect.is_empty:
+                    # Convert PDF points → pixels at current zoom, with ±3pt padding
+                    pad_px = int(3 * zoom)
+                    x0_px = max(0, int(rect.x0 * zoom) - pad_px)
+                    y0_px = max(0, int(rect.y0 * zoom) - pad_px)
+                    x1_px = min(img.width,  int(rect.x1 * zoom) + pad_px)
+                    y1_px = min(img.height, int(rect.y1 * zoom) + pad_px)
+                    draw_overlay.rectangle([x0_px, y0_px, x1_px, y1_px], fill=(255, 255, 255))
+                    print(f"[DEBUG] Suppressed dashed path at PDF rect={rect}, px=({x0_px},{y0_px},{x1_px},{y1_px})")
+        del draw_overlay
 
     # --- STEP 1a: Fixed margin crop ---
     crop    = config.get("crop_margin", {"top": 0, "bottom": 0, "left": 0, "right": 0})
