@@ -92,8 +92,8 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
 
         if multi_page_input:
             # Both challan and invoice come from the SAME source page
-            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_challan), c_config)
-            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_invoice), i_config)
+            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_challan), c_config, slot=slot)
+            _draw_page(current_out_page, doc_in, src_page_idx, get_quad_rect(quad_invoice), i_config, slot=slot)
         else:
             # Challan and invoice are on separate pages within each order PDF
             challan_page_idx = platform_config.get("challan_page_index", 0)
@@ -101,11 +101,11 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
 
             if doc_in.page_count > challan_page_idx:
                 print(f"[DEBUG] Drawing CHALLAN: src_page={challan_page_idx}, quadrant={quad_challan}")
-                _draw_page(current_out_page, doc_in, challan_page_idx, get_quad_rect(quad_challan), c_config)
+                _draw_page(current_out_page, doc_in, challan_page_idx, get_quad_rect(quad_challan), c_config, slot=slot)
 
             if doc_in.page_count > invoice_page_idx:
                 print(f"[DEBUG] Drawing INVOICE: src_page={invoice_page_idx}, quadrant={quad_invoice}")
-                _draw_page(current_out_page, doc_in, invoice_page_idx, get_quad_rect(quad_invoice), i_config)
+                _draw_page(current_out_page, doc_in, invoice_page_idx, get_quad_rect(quad_invoice), i_config, slot=slot)
 
         if progress_callback:
             progress_callback(order_idx + 1, total_orders)
@@ -158,10 +158,14 @@ def _close_order_sources(order_sources):
             closed.add(id(doc))
 
 
-def _draw_page(out_page, doc_in, page_num, target_rect, config):
+def _draw_page(out_page, doc_in, page_num, target_rect, config, slot=0):
     """
     Render a single source page, apply crops/rotation, and insert it into
     the target rectangle on the output page.
+
+    slot=0  → content is bottom-anchored (top half of page, pushes toward gutter)
+    slot=1  → content is top-anchored    (bottom half of page, pushes toward gutter)
+    This collapses dead space to the outer page edges instead of between orders.
     """
     page = doc_in[page_num]
 
@@ -270,7 +274,7 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config):
         img = img.rotate(ccw_angle, expand=True)
         print(f"[DEBUG] Rotated {rotate}° CW, new_size={img.size}")
 
-    # --- STEP 3: Scale and center into target rect ---
+    # --- STEP 3: Scale and place into target rect ---
     tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     tmp_out.close()
     img.save(tmp_out.name)
@@ -278,12 +282,16 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config):
     img_w, img_h = img.size
     target_w = target_rect.width
     target_h = target_rect.height
-    scale  = min(target_w / img_w, target_h / img_h)
-    new_w  = img_w * scale
-    new_h  = img_h * scale
+    scale = min(target_w / img_w, target_h / img_h)
+    new_w = img_w * scale
+    new_h = img_h * scale
 
+    # Horizontal: always centered.
+    # Vertical: slot-0 → bottom-anchor (pushes toward gutter from above)
+    #           slot-1 → top-anchor    (pushes toward gutter from below)
+    # Empty space concentrates at the outer page edges, not between orders.
     x_offset = (target_w - new_w) / 2
-    y_offset = (target_h - new_h) / 2
+    y_offset = (target_h - new_h) if slot == 0 else 0
 
     centered_rect = fitz.Rect(
         target_rect.x0 + x_offset,
