@@ -277,21 +277,33 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config, slot=0):
     # --- STEP 3: Scale and place into target rect ---
     tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     tmp_out.close()
-    img.save(tmp_out.name)
 
     img_w, img_h = img.size
     target_w = target_rect.width
     target_h = target_rect.height
-    scale = min(target_w / img_w, target_h / img_h)
-    new_w = img_w * scale
-    new_h = img_h * scale
+    scale_to_height = config.get("scale_to_height", False)
 
-    # Horizontal: always centered.
-    # Vertical: slot-0 → bottom-anchor (pushes toward gutter from above)
-    #           slot-1 → top-anchor    (pushes toward gutter from below)
-    # Empty space concentrates at the outer page edges, not between orders.
-    x_offset = (target_w - new_w) / 2
-    y_offset = (target_h - new_h) if slot == 0 else 0
+    if scale_to_height:
+        # Fill full quadrant HEIGHT, anchor top-left, crop right overflow.
+        scale = target_h / img_h
+        new_w = img_w * scale
+        new_h = target_h
+        if new_w > target_w:
+            # Crop image to only the visible left portion before saving
+            visible_px_w = int(img_w * (target_w / new_w))
+            img = img.crop((0, 0, visible_px_w, img_h))
+            new_w = target_w
+        x_offset = 0
+        y_offset = 0
+    else:
+        # Default: contain (fit within quadrant), slot-aware vertical alignment
+        scale = min(target_w / img_w, target_h / img_h)
+        new_w = img_w * scale
+        new_h = img_h * scale
+        x_offset = (target_w - new_w) / 2
+        y_offset = (target_h - new_h) if slot == 0 else 0
+
+    img.save(tmp_out.name)
 
     centered_rect = fitz.Rect(
         target_rect.x0 + x_offset,
