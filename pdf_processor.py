@@ -285,11 +285,15 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config, slot=0):
     new_w = img_w * scale
     new_h = img_h * scale
 
-    # Horizontal: always centered.
+    # Horizontal: left-column (x0 < 200) anchors left, right-column anchors right.
+    # This collapses horizontal dead space into the center fold, making outer margins strictly uniform.
+    if target_rect.x0 < 200:
+        x_offset = 0
+    else:
+        x_offset = target_w - new_w
+
     # Vertical: slot-0 → bottom-anchor (pushes toward gutter from above)
     #           slot-1 → top-anchor    (pushes toward gutter from below)
-    # Empty space concentrates at the outer page edges, not between orders.
-    x_offset = (target_w - new_w) / 2
     y_offset = (target_h - new_h) if slot == 0 else 0
 
     img.save(tmp_out.name)

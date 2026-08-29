@@ -33,7 +33,7 @@
       ],
       "multi_page_input": true,
       "orders_per_page": 1,
-      "page_margin_left": 14,
+      "page_margin_left": 10,
       "page_margin_right": 10,
       "split_ratio": 0.5,
       "page_gutter_v": 6,
@@ -52,7 +52,7 @@
         "auto_crop": true,
         "crop_padding": 3,
         "rotate_degrees": 0,
-        "crop_margin": { "top": 0, "bottom": 12, "left": 0, "right": 0 }
+        "crop_margin": { "top": 0, "bottom": 9, "left": 0, "right": 0 }
       },
       "page_invoice": {
         "crop_top_at_text": "Tax Invoice",
