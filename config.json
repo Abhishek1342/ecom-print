@@ -49,12 +49,10 @@
       ],
       "page_challan": {
         "crop_bottom_at_text": "Tax Invoice",
-        "suppress_dashed_lines": true,
         "auto_crop": true,
         "crop_padding": 3,
         "rotate_degrees": 0,
-        "scale_to_height": true,
-        "crop_margin": { "top": 0, "bottom": 0, "left": 45, "right": 0 }
+        "crop_margin": { "top": 0, "bottom": 12, "left": 0, "right": 0 }
       },
       "page_invoice": {
         "crop_top_at_text": "Tax Invoice",
