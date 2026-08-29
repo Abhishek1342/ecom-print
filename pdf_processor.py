@@ -192,15 +192,16 @@ def _draw_page(out_page, doc_in, page_num, target_rect, config):
         for d in drawings:
             if d.get("dashes"):  # only dashed/dotted paths
                 rect = d.get("rect")
-                if rect and not rect.is_empty:
+                if rect is not None:  # NOTE: do NOT check is_empty — horizontal lines have y0==y1 (is_empty=True)
                     # Convert PDF points → pixels at current zoom, with ±3pt padding
                     pad_px = int(3 * zoom)
                     x0_px = max(0, int(rect.x0 * zoom) - pad_px)
                     y0_px = max(0, int(rect.y0 * zoom) - pad_px)
                     x1_px = min(img.width,  int(rect.x1 * zoom) + pad_px)
                     y1_px = min(img.height, int(rect.y1 * zoom) + pad_px)
-                    draw_overlay.rectangle([x0_px, y0_px, x1_px, y1_px], fill=(255, 255, 255))
-                    print(f"[DEBUG] Suppressed dashed path at PDF rect={rect}, px=({x0_px},{y0_px},{x1_px},{y1_px})")
+                    if x1_px > x0_px and y1_px > y0_px:
+                        draw_overlay.rectangle([x0_px, y0_px, x1_px, y1_px], fill=(255, 255, 255))
+                        print(f"[DEBUG] Suppressed dashed path at PDF rect={rect}, px=({x0_px},{y0_px},{x1_px},{y1_px})")
         del draw_overlay
 
     # --- STEP 1a: Fixed margin crop ---
