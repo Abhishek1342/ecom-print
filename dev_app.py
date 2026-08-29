@@ -18,14 +18,16 @@ import gradio as gr
 import fitz  # PyMuPDF
 from PIL import Image
 import io
+import importlib
 
 # ── Resolve paths relative to this file so it works from any cwd ─────────────
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(_BASE_DIR, "config.json")
 
-# Import the real processing engine
+# Import the real processing engine as a MODULE (not just the function) so
+# importlib.reload() can hot-swap it on every Generate click.
 sys.path.insert(0, _BASE_DIR)
-from pdf_processor import process_pdfs
+import pdf_processor
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,6 +67,8 @@ def _pdf_to_page_images(pdf_path: str, dpi: int = 150) -> list[Image.Image]:
 def run_processing(uploaded_files, platform: str, progress=gr.Progress()):
     """
     Process uploaded PDFs with the real pdf_processor engine.
+    Reloads pdf_processor module on every call so code changes are live
+    without restarting the server.
 
     Args:
         uploaded_files: list of file paths from gr.File
@@ -74,6 +78,10 @@ def run_processing(uploaded_files, platform: str, progress=gr.Progress()):
     Returns:
         Tuple of (output_pdf_path, gallery_images, status_message)
     """
+    # ── Hot-reload pdf_processor so .py edits are picked up immediately ───────
+    importlib.reload(pdf_processor)
+    process_pdfs = pdf_processor.process_pdfs
+
     # ── Validate inputs ───────────────────────────────────────────────────────
     if not uploaded_files:
         return None, [], gr.update(value="⚠️ Please upload at least one PDF file.", visible=True)
@@ -151,8 +159,8 @@ def build_ui() -> gr.Blocks:
         # ── Header ────────────────────────────────────────────────────────────
         gr.Markdown(
             "# 🖨️ E-commerce Invoice & Challan Printer\n"
-            "> **Dev environment** — changes to `pdf_processor.py` and `config.json` "
-            "are picked up on every run.",
+            "> **Dev environment** — `config.json` changes and `pdf_processor.py` "
+            "code changes are both picked up on every run (hot-reload via importlib).",
             elem_id="title",
         )
 
