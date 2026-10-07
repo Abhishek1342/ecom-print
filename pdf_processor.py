@@ -11,8 +11,8 @@ def process_pdfs(pdf_paths, config_path, platform="Amazon", output_path="output.
     All layout settings (quadrant positions, split ratio, page mapping) come from config.
 
     Two input modes are supported (controlled by platform config):
-      - Standard mode  : each PDF file = one order (Amazon, JioMart, Meesho)
-      - Multi-page mode: one PDF file contains N pages, each page = one order (Flipkart)
+      - Standard mode  : each PDF file = one order (Amazon, JioMart)
+      - Multi-page mode: one PDF file contains N pages, each page = one order (Flipkart, Meesho)
     """
     with open(config_path, "r") as f:
         config = json.load(f)
